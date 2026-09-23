@@ -13,4 +13,4 @@ EXPOSE 5000
 ENV CHOKIDAR_USEPOLLING = true
 ENV WATCHPACK_POLLING=true
 
-CMD [ "npm" , "run" ,  "dev" ]
+CMD ["node", "server.js"]

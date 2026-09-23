@@ -1,46 +1,90 @@
-name: Deploy
+name: CICD Pipeline
 
 on:
   push:
-    branches: develop
+    branches:
+      - '**'
 
 permissions:
   contents: read
   packages: write
 
 jobs:
+
   build:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
 
-      - uses: docker/login-action@v3
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set Image Name
+        run: |
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:latest" >> $GITHUB_ENV
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: docker build -t ghcr.io/${{ github.repository }}:latest .
-      - run: docker push ghcr.io/${{ github.repository }}:latest
+      - name: Build
+        run: |
+          docker build -t $IMAGE .
+
+      - name: Push
+        run: |
+          docker push $IMAGE
+
 
   deploy:
     needs: build
     runs-on: self-hosted
+
     steps:
-      - uses: docker/login-action@v3
+
+      - name: Set Image Name
+        run: |
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:latest" >> $GITHUB_ENV
+
+      - name: Check Docker
+        run: |
+          docker --version
+          docker ps
+
+      - name: Check ENV
+        run: |
+          test -f /opt/inventory/.env || {
+            echo "ERROR: /opt/inventory/.env not found"
+            exit 1
+          }
+
+      - name: Login GHCR
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - run: docker pull ghcr.io/${{ github.repository }}:latest
+      - name: Pull Image
+        run: |
+          docker pull $IMAGE
 
-      - run: |
+      - name: Deploy
+        run: |
           docker rm -f inventory-app || true
 
           docker run -d \
-          --name inventory-app \
-          --restart unless-stopped \
-          -p 127.0.0.1:3000:3000 \
-          --env-file /opt/inventory/.env \
-          ghcr.io/${{ github.repository }}:latest
+            --name inventory-app \
+            --restart unless-stopped \
+            -p 127.0.0.1:3000:3000 \
+            --env-file /opt/inventory/.env \
+            $IMAGE
+
+      - name: Check Container
+        run: |
+          sleep 5
+          docker ps -a
+          docker logs inventory-app --tail 100

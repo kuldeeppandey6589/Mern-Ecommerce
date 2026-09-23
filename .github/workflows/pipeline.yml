@@ -1,40 +1,46 @@
-name: CICD Pipeline
+name: Deploy
 
 on:
   push:
-    branches:
-      - main
-      - develop
+    branches: "**"
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
-  build-and-push:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
+      - uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push frontend
-        uses: docker/build-push-action@v6
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/test-frontend:latest
+      - run: docker build -t ghcr.io/${{ github.repository }}:latest .
+      - run: docker push ghcr.io/${{ github.repository }}:latest
 
-      - name: Build and push backend
-        uses: docker/build-push-action@v6
+  deploy:
+    needs: build
+    runs-on: self-hosted
+    steps:
+      - uses: docker/login-action@v3
         with:
-          context: ./backend
-          file: ./backend/Dockerfile
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/test-backend:latest
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: docker pull ghcr.io/${{ github.repository }}:latest
+
+      - run: |
+          docker rm -f inventory-app || true
+
+          docker run -d \
+          --name inventory-app \
+          --restart unless-stopped \
+          -p 127.0.0.1:3000:3000 \
+          --env-file /opt/inventory/.env \
+          ghcr.io/${{ github.repository }}:latest

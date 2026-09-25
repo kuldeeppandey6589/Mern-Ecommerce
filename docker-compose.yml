@@ -1,9 +1,6 @@
 services:
 
   backend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
     image: kuldeepofficial/test-backend:latest
     container_name: test-backend
     restart: always
@@ -13,11 +10,9 @@ services:
       - .env
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
     image: kuldeepofficial/test-frontend:latest
     container_name: test-frontend
     restart: always
     ports:
       - "3000:3000"
+      

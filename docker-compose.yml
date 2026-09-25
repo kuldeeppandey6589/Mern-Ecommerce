@@ -1,14 +1,9 @@
-version: '3.8'
 services:
-
   backend:
     image: kuldeepofficial/test-backend:latest
     platform: linux/amd64
-    build:
-      context: .
-      dockerfile: Dockerfile
     container_name: test-backend
-    restart: always
+    restart: unless-stopped
     ports:
       - "5000:5000"
     env_file:
@@ -16,12 +11,8 @@ services:
 
   frontend:
     image: kuldeepofficial/test-frontend:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
     platform: linux/amd64
     container_name: test-frontend
-    restart: always
+    restart: unless-stopped
     ports:
       - "3000:3000"
-      

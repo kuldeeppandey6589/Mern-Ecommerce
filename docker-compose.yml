@@ -1,67 +1,48 @@
+
 services:
 
-  mongodb:
-    image: mongo:7
-    container_name: test-mongodb
+  mongo:
+    image: mongo:4.4.6 
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - test
     restart: unless-stopped
 
-    ports:
-      - "127.0.0.1:5006:27017"
-
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USERNAME}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
-      MONGO_INITDB_DATABASE: ${MONGO_DB}
-
-    volumes:
-      - mongodb_data:/data/db
-
-    networks:
-      - test-network
-
-
   backend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     image: kuldeepofficial/test-backend:latest
     platform: linux/amd64
     container_name: test-backend
-    restart: unless-stopped
-
+    restart: always
     ports:
-      - "5000:5000"
-
+      - "8080:8080"
+    environment:
+      - PORT=8080  
     env_file:
       - .env
 
-    environment:
-      MONGO_URI: mongodb://${MONGO_USERNAME}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DB}?authSource=admin
-
-    depends_on:
-      - mongodb
-
-    networks:
-      - test-network
-
-
   frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     image: kuldeepofficial/test-frontend:latest
     platform: linux/amd64
     container_name: test-frontend
-    restart: unless-stopped
-
+    restart: always
     ports:
       - "3000:3000"
-
-    depends_on:
-      - backend
-
-    networks:
-      - test-network
-
+    environment:
+      - PORT=8080  
 
 volumes:
-  mongodb_data:
-
+  mongo-data:
 
 networks:
-  test-network:
+  test:
     driver: bridge
